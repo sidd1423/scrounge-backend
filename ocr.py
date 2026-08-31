@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 
 # On Windows, if tesseract isn't on PATH, uncomment and set this to your
 # install location, e.g.:
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 MIN_TEXT_LENGTH = 3  # ignore OCR noise shorter than this
 
