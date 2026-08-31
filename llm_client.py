@@ -26,6 +26,7 @@ from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
@@ -36,6 +37,7 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 # OPENROUTER_MODEL env var to force a specific model, or check
 # https://openrouter.ai/models?max_price=0 for the current free vision
 # roster if all of these eventually get delisted too.
+GEMINI_DEFAULT_MODEL = "gemini-3.7-flash"
 FREE_VISION_MODEL_CANDIDATES = [
     os.environ.get("OPENROUTER_MODEL"),  # explicit override, if set
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
@@ -44,13 +46,21 @@ FREE_VISION_MODEL_CANDIDATES = [
     "google/gemma-4-26b-a4b-it:free",
 ]
 FREE_VISION_MODEL_CANDIDATES = [m for m in FREE_VISION_MODEL_CANDIDATES if m]
-
 OPENAI_DEFAULT_MODEL = "gpt-4o-mini"
 
 REQUEST_TIMEOUT_SECONDS = 40  # fail fast — the SDK default (600s) is far too long for a per-tile call
 CLIENT_MAX_RETRIES = 1  # SDK-level auto-retry on transient errors; keep low so our own fallback loop controls total wait time
 
-if OPENROUTER_API_KEY:
+if GEMINI_API_KEY:
+    client = OpenAI(
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        api_key=GEMINI_API_KEY,
+        timeout=REQUEST_TIMEOUT_SECONDS,
+        max_retries=CLIENT_MAX_RETRIES,
+    )
+    DEFAULT_MODEL = GEMINI_DEFAULT_MODEL
+    USING_OPENROUTER = False
+elif OPENROUTER_API_KEY:
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=OPENROUTER_API_KEY,
@@ -92,7 +102,7 @@ def chat_completion_with_fallback(**kwargs):
     global _working_model
 
     if not USING_OPENROUTER:
-        return client.chat.completions.create(model=OPENAI_DEFAULT_MODEL, **kwargs)
+        return client.chat.completions.create(model=GEMINI_DEFAULT_MODEL, **kwargs)
 
     candidates = [_working_model] if _working_model else []
     candidates += [m for m in FREE_VISION_MODEL_CANDIDATES if m != _working_model]
